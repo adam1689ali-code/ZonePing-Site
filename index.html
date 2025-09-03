@@ -320,52 +320,31 @@
 
   <!-- Minimal JS -->
   <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      // Icons + year
-      if (window.lucide && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
-      const y = document.getElementById('year'); if (y) y.textContent = new Date().getFullYear();
+    form.addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const email = (emailI.value || '').trim();
+  if (!email) return;
 
-      // Form + modal
-      const form   = document.getElementById('waitlist-form');
-      const emailI = document.getElementById('email');
-      const okTxt  = document.getElementById('wl-success');
-
-      const modal   = document.getElementById('thanks-modal');
-      const closeBt = document.getElementById('thanks-close');
-      const shade   = document.getElementById('thanks-backdrop');
-
-      function openModal() { modal.classList.remove('hidden'); modal.classList.add('flex'); closeBt.focus(); document.body.style.overflow = 'hidden'; }
-      function closeModal() { modal.classList.add('hidden'); modal.classList.remove('flex'); document.body.style.overflow = ''; }
-
-      closeBt.addEventListener('click', closeModal);
-      shade.addEventListener('click', closeModal);
-      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal(); });
-
-      form.addEventListener('submit', async function (e) {
-        e.preventDefault();
-        const email = (emailI.value || '').trim();
-        if (!email) return;
-
-        try {
-          // POST to your Vercel API route (ensure /api/subscribe exists)
-          const res = await fetch('/api/subscribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
-          });
-
-          if (res.ok) {
-            if (okTxt) okTxt.classList.add('hidden'); // keep page tidy
-            form.reset();
-            openModal();
-          } else {
-            alert('Something went wrong. Please try again.');
-          }
-        } catch (err) {
-          alert('Network error. Please try again.');
-        }
-      });
+  try {
+    const res = await fetch('/api/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
     });
+
+    if (res.ok) {
+      if (okTxt) okTxt.classList.add('hidden');
+      form.reset();
+      openModal(); // ✅ your “Congrats” popup
+    } else {
+      const j = await res.json().catch(() => ({}));
+      alert(j.error ? `${j.error}${j.detail ? `\n${j.detail}` : ''}` : 'Something went wrong. Please try again.');
+    }
+  } catch {
+    alert('Network error. Please try again.');
+  }
+});
+
   </script>
 </body>
 </html>
