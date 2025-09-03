@@ -1,17 +1,42 @@
-// /api/subscribe.js — no dependencies required
-export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+// /api/subscribe.js — Edge runtime (works without npm deps, parses JSON reliably)
+export const config = { runtime: 'edge' };
+
+export default async function handler(req) {
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { 'content-type': 'application/json' }
+    });
+  }
 
   try {
-    const { email } = req.body || {};
-    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
-      return res.status(400).json({ error: 'Valid email required' });
+    // Parse JSON body safely in Edge runtime
+    let email = '';
+    try {
+      const data = await req.json();
+      email = (data?.email || '').trim();
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+        status: 400, headers: { 'content-type': 'application/json' }
+      });
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      return new Response(JSON.stringify({ error: 'Valid email required' }), {
+        status: 400, headers: { 'content-type': 'application/json' }
+      });
     }
 
     const apiKey = process.env.RESEND_API_KEY;
-    const to = process.env.TO_EMAIL || 'service@zoneping.com';
-    const from = process.env.FROM_EMAIL || 'onboarding@resend.dev'; // works immediately
+    const to     = process.env.TO_EMAIL || 'service@zoneping.com';
+    const from   = process.env.FROM_EMAIL || 'onboarding@resend.dev';
 
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'Missing RESEND_API_KEY' }), {
+        status: 500, headers: { 'content-type': 'application/json' }
+      });
+    }
+
+    // Send email via Resend REST API
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -26,9 +51,19 @@ export default async function handler(req, res) {
       })
     });
 
-    if (!r.ok) return res.status(500).json({ error: 'Email send failed' });
-    return res.status(200).json({ ok: true });
+    if (!r.ok) {
+      const detail = await r.text().catch(() => '');
+      return new Response(JSON.stringify({ error: 'Resend failed', detail }), {
+        status: 500, headers: { 'content-type': 'application/json' }
+      });
+    }
+
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200, headers: { 'content-type': 'application/json' }
+    });
   } catch (e) {
-    return res.status(500).json({ error: 'Server error' });
+    return new Response(JSON.stringify({ error: 'Server error', detail: String(e) }), {
+      status: 500, headers: { 'content-type': 'application/json' }
+    });
   }
 }
