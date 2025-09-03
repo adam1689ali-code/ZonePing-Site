@@ -300,6 +300,29 @@
         ok.classList.remove('hidden');
       });
     });
-  </script>
+  <script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (window.lucide && typeof lucide.createIcons === 'function') { lucide.createIcons(); }
+  const y = document.getElementById('year'); if (y) y.textContent = new Date().getFullYear();
+
+  const form = document.getElementById('waitlist-form');
+  const ok = document.getElementById('wl-success');
+  const email = document.getElementById('email');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const r = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.value.trim() })
+      });
+      if (r.ok) { ok.classList.remove('hidden'); form.reset(); }
+      else { alert('Something went wrong. Please try again.'); }
+    } catch { alert('Network error. Please try again.'); }
+  });
+});
+</script>
+
 </body>
 </html>
